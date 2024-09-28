@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+import { ContactContext } from "./ContactContext";
 
-const AddContactForm = ({ onAdd }) => {
+const AddContactForm = () => {
+  const { dispatch } = useContext(ContactContext);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [job, setJob] = useState("");
 
-  // States for individual field errors
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -14,7 +15,6 @@ const AddContactForm = ({ onAdd }) => {
 
   const [successMessage, setSuccessMessage] = useState("");
 
-  // استفاده از useEffect برای پاک کردن پیام موفقیت بعد از ۴ ثانیه
   useEffect(() => {
     if (successMessage) {
       const timer = setTimeout(() => {
@@ -24,12 +24,10 @@ const AddContactForm = ({ onAdd }) => {
     }
   }, [successMessage]);
 
-  // تابع مدیریت ارسال فرم
   const handleSubmit = useCallback(
     (e) => {
       e.preventDefault();
 
-      // Reset errors
       setNameError("");
       setEmailError("");
       setPhoneError("");
@@ -66,23 +64,23 @@ const AddContactForm = ({ onAdd }) => {
         hasError = true;
       }
 
-      // اگر خطایی وجود دارد، پیام موفقیت را مخفی کنیم
       if (hasError) {
         setSuccessMessage("");
         return;
       }
 
-      // اضافه کردن مخاطب و نمایش پیام موفقیت
-      onAdd({ name, email, phone, job });
+      dispatch({
+        type: "ADD_CONTACT",
+        payload: { name, email, phone, job },
+      });
       setSuccessMessage("مخاطب جدید به لیست افزوده شد");
 
-      // پاک کردن فیلدهای فرم
       setName("");
       setEmail("");
       setPhone("");
       setJob("");
     },
-    [name, email, phone, job, onAdd]
+    [name, email, phone, job, dispatch]
   );
 
   return (

@@ -1,71 +1,75 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import ContactList from "./ContactList";
 import AddContactForm from "./AddContactForm";
-import EditContactForm from "./EditContactForm";
 import SearchBar from "./SearchBar";
 import Modal from "./Modal";
 import BulkActions from "./BulkActions";
+import { ContactProvider, useContact } from "./ContactContext";
 
 const App = () => {
-  const [contacts, setContacts] = useState([]);
-  const [selectedContact, setSelectedContact] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [modalMessage, setModalMessage] = useState("");
-  const [onConfirm, setOnConfirm] = useState(() => () => {});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedContacts, setSelectedContacts] = useState([]);
-  const [successMessage, setSuccessMessage] = useState("");
+  const {
+    state: { contacts, selectedContacts, successMessage },
+    dispatch,
+  } = useContact();
 
-  const handleAddContact = useCallback((contact) => {
-    setContacts((prevContacts) => [
-      ...prevContacts,
-      { id: Date.now(), ...contact },
-    ]);
-  }, []);
+  const [selectedContact, setSelectedContact] = React.useState(null);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [showModal, setShowModal] = React.useState(false);
+  const [modalMessage, setModalMessage] = React.useState("");
+  const [onConfirm, setOnConfirm] = React.useState(() => () => {});
+  const [searchQuery, setSearchQuery] = React.useState("");
 
-  const handleEditContact = useCallback((contact) => {
-    setContacts((prevContacts) =>
-      prevContacts.map((c) => (c.id === contact.id ? contact : c))
-    );
-    setIsEditing(false);
-    setSelectedContact(null);
-    setSuccessMessage("تغییرات اعمال گردید");
-  }, []);
+  const handleAddContact = useCallback(
+    (contact) => {
+      dispatch({
+        type: "ADD_CONTACT",
+        payload: { id: Date.now(), ...contact },
+      });
+    },
+    [dispatch]
+  );
 
-  const handleDeleteContact = useCallback((id) => {
-    setModalMessage("آیا مطمئن هستید که میخواهید این مخاطب را حذف کنید؟");
-    setShowModal(true);
-    setOnConfirm(() => () => {
-      setContacts((prevContacts) =>
-        prevContacts.filter((contact) => contact.id !== id)
-      );
-      setShowModal(false);
-      setSuccessMessage("مخاطب با موفقیت حذف گردید");
-    });
-  }, []);
+  const handleEditContact = useCallback(
+    (contact) => {
+      dispatch({ type: "EDIT_CONTACT", payload: contact });
+      setIsEditing(false);
+      setSelectedContact(null);
+    },
+    [dispatch]
+  );
 
-  const handleBulkDelete = useCallback((ids) => {
-    setModalMessage("آیا از حذف مخاطبان مطمئن هستید؟");
-    setShowModal(true);
-    setOnConfirm(() => () => {
-      setContacts((prevContacts) =>
-        prevContacts.filter((contact) => !ids.includes(contact.id))
-      );
-      setSelectedContacts([]);
-      setShowModal(false);
-      setSuccessMessage("مخاطبین با موفقیت حذف گردیدند");
-    });
-  }, []);
+  const handleDeleteContact = useCallback(
+    (id) => {
+      setModalMessage("آیا مطمئن هستید که میخواهید این مخاطب را حذف کنید؟");
+      setShowModal(true);
+      setOnConfirm(() => () => {
+        dispatch({ type: "DELETE_CONTACT", payload: id });
+        setShowModal(false);
+      });
+    },
+    [dispatch]
+  );
+
+  const handleBulkDelete = useCallback(
+    (ids) => {
+      setModalMessage("آیا از حذف مخاطبان مطمئن هستید؟");
+      setShowModal(true);
+      setOnConfirm(() => () => {
+        dispatch({ type: "BULK_DELETE_CONTACTS", payload: ids });
+        setShowModal(false);
+      });
+    },
+    [dispatch]
+  );
 
   useEffect(() => {
     if (successMessage) {
       const timer = setTimeout(() => {
-        setSuccessMessage("");
+        dispatch({ type: "CLEAR_SUCCESS_MESSAGE" });
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [successMessage]);
+  }, [successMessage, dispatch]);
 
   const filteredContacts = contacts.filter(
     (contact) =>
@@ -74,17 +78,12 @@ const App = () => {
 
   return (
     <div className="App">
-      <SearchBar onSearch={setSearchQuery} />
       <ContactList
         contacts={filteredContacts}
         selectedContacts={selectedContacts}
-        onSelectContact={(id) =>
-          setSelectedContacts((prevSelected) =>
-            prevSelected.includes(id)
-              ? prevSelected.filter((selectedId) => selectedId !== id)
-              : [...prevSelected, id]
-          )
-        }
+        onSelectContact={(id) => {
+          dispatch({ type: "TOGGLE_SELECT_CONTACT", payload: id });
+        }}
         onDelete={handleDeleteContact}
         onEdit={(contact) => {
           setSelectedContact(contact);
@@ -94,7 +93,7 @@ const App = () => {
       <BulkActions
         selectedContacts={selectedContacts}
         onDelete={handleBulkDelete}
-        onClearSelection={() => setSelectedContacts([])}
+        onClearSelection={() => dispatch({ type: "CLEAR_SELECTED_CONTACTS" })}
       />
       {isEditing ? (
         <EditContactForm contact={selectedContact} onSave={handleEditContact} />
@@ -117,4 +116,10 @@ const App = () => {
   );
 };
 
-export default App;
+const WrappedApp = () => (
+  <ContactProvider>
+    <App />
+  </ContactProvider>
+);
+
+export default WrappedApp;
